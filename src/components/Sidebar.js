@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, Building2, Package, 
   ShoppingCart, Truck, FileText, DollarSign,
-  Factory, BarChart3, Settings, LogOut, X
+  Factory, BarChart3, Settings, LogOut, X, UserCog
 } from 'lucide-react';
 
 function Sidebar({ currentPage, onNavigate, onLogout, isOpen, onClose }) {
@@ -13,6 +13,7 @@ function Sidebar({ currentPage, onNavigate, onLogout, isOpen, onClose }) {
     { id: 'divider-1', label: 'DANH MỤC', section: 'header' },
     { id: 'customers', icon: Users, label: 'Khách hàng', section: 'category' },
     { id: 'suppliers', icon: Building2, label: 'Nhà cung cấp', section: 'category' },
+    { id: 'employees', icon: UserCog, label: 'Nhân viên', section: 'category' },
     { id: 'products', icon: Package, label: 'Thành phẩm', section: 'category' },
     
     { id: 'divider-2', label: 'ĐƠN HÀNG', section: 'header' },

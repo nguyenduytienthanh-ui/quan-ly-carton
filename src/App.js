@@ -4,6 +4,8 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
+import Suppliers from './pages/Suppliers';
+import Employees from './pages/Employees';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -38,7 +40,9 @@ function App() {
       case 'customers':
         return <Customers />;
       case 'suppliers':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Nhà cung cấp</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
+        return <Suppliers />;
+      case 'employees':
+        return <Employees />;
       case 'products':
         return <div className="p-6"><h1 className="text-2xl font-bold">Thành phẩm</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
       case 'sales-orders':
