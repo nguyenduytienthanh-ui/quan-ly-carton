@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, Lock, Unlock, Download, Printer, TrendingUp, TrendingDown, DollarSign, Calculator, RotateCcw } from 'lucide-react';
+import { Search, Eye, Lock, Unlock, Download, Printer, TrendingUp, TrendingDown, DollarSign, Calculator } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const removeVietnameseTones = (str) => {
@@ -31,8 +31,8 @@ function Payroll() {
     return saved ? JSON.parse(saved) : [];
   };
 
-  const loadAdvanceTransaction = () => {
-    const saved = localStorage.getItem('advance_transaction');
+  const loadAdvancePayment = () => {
+    const saved = localStorage.getItem('advance_payment');
     return saved ? JSON.parse(saved) : [];
   };
 
@@ -46,7 +46,7 @@ function Payroll() {
   const [allowances] = useState(loadAllowances);
   const [bonusPenalty] = useState(loadBonusPenalty);
   const [attendance] = useState(loadAttendance);
-  const [advanceTransaction, setAdvanceTransaction] = useState(loadAdvanceTransaction);
+  const [advancePayment, setAdvancePayment] = useState(loadAdvancePayment);
   const [payroll, setPayroll] = useState(loadPayroll);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -54,11 +54,7 @@ function Payroll() {
   const [viewingDetail, setViewingDetail] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printingPayslip, setPrintingPayslip] = useState(null);
-  const [showRevertModal, setShowRevertModal] = useState(false);
-  const [revertingPayslip, setRevertingPayslip] = useState(null);
-  const [revertReason, setRevertReason] = useState('');
 
-  // Insurance configuration
   const [insuranceConfig] = useState({
     employee_social: 8.0,
     employee_health: 1.5,
@@ -74,10 +70,9 @@ function Payroll() {
   }, [payroll]);
 
   useEffect(() => {
-    localStorage.setItem('advance_transaction', JSON.stringify(advanceTransaction));
-  }, [advanceTransaction]);
+    localStorage.setItem('advance_payment', JSON.stringify(advancePayment));
+  }, [advancePayment]);
 
-  // Calculate seniority allowance (0.5% per year)
   const calculateSeniorityAllowance = (basicSalary, startDate) => {
     if (!startDate) return 0;
     const start = new Date(startDate);
@@ -86,7 +81,6 @@ function Payroll() {
     return Math.floor(basicSalary * years * 0.005);
   };
 
-  // Calculate total allowances for an employee
   const calculateAllowances = (empId, actualDays, standardDays) => {
     const empAllowances = allowances.filter(a => a.emp_id === empId);
     let total = 0;
@@ -103,7 +97,6 @@ function Payroll() {
     return Math.floor(total);
   };
 
-  // Calculate insurance base salary
   const calculateInsuranceBase = (empId, basicSalary) => {
     const empAllowances = allowances.filter(a => a.emp_id === empId);
     let insuranceBase = basicSalary;
@@ -121,7 +114,6 @@ function Payroll() {
     return insuranceBase;
   };
 
-  // Calculate overtime pay
   const calculateOvertimePay = (empId, basicSalary, standardDays) => {
     const empAttendance = attendance.find(a => a.emp_id === empId && a.month === selectedMonth);
     if (!empAttendance || !empAttendance.overtime || empAttendance.overtime.length === 0) {
@@ -138,7 +130,6 @@ function Payroll() {
     return Math.floor(totalOvertimePay);
   };
 
-  // Calculate bonus and penalty
   const calculateBonusAndPenalty = (empId, actualDays, standardDays) => {
     const items = bonusPenalty.filter(item => item.emp_id === empId && item.month === selectedMonth);
     let totalBonus = 0;
@@ -164,27 +155,16 @@ function Payroll() {
     };
   };
 
-  // Calculate advance deduction from advance_transaction
   const calculateAdvanceDeduction = (empId) => {
-    const empTransactions = advanceTransaction.filter(t => 
-      t.ma_nv === empId && 
-      t.tru_luong === true &&
-      t.thang_tru === selectedMonth
+    const empAdvances = advancePayment.filter(adv => 
+      adv.emp_id === empId && 
+      adv.month === selectedMonth &&
+      adv.status === 'chua_tru'
     );
     
-    let total = 0;
-    empTransactions.forEach(t => {
-      if (t.loai === 'chi') {
-        total += t.so_tien;
-      } else {
-        total -= t.so_tien;
-      }
-    });
-    
-    return total;
+    return empAdvances.reduce((sum, adv) => sum + adv.amount, 0);
   };
 
-  // Main calculation function
   const calculatePayrollForEmployee = (employee) => {
     const empAttendance = attendance.find(a => a.emp_id === employee.id && a.month === selectedMonth);
     
@@ -256,18 +236,12 @@ function Payroll() {
       
       net_pay: netPay,
       
-      advance_reverted: false,
-      advance_revert_reason: '',
-      advance_revert_date: null,
-      advance_revert_by: '',
-      
       status: 'unlocked',
       created_date: new Date().toISOString(),
       note: ''
     };
   };
 
-  // Calculate payroll for all employees
   const handleCalculatePayroll = () => {
     const existingPayroll = payroll.filter(p => p.month === selectedMonth);
     if (existingPayroll.length > 0) {
@@ -294,65 +268,16 @@ function Payroll() {
     }
 
     // Auto deduct advances
-    const updatedTransactions = advanceTransaction.map(t => {
-      if (t.tru_luong && t.thang_tru === selectedMonth && t.trang_thai === 'chua_tru') {
-        return { ...t, trang_thai: 'da_tru' };
+    const updatedAdvances = advancePayment.map(adv => {
+      if (adv.month === selectedMonth && adv.status === 'chua_tru') {
+        return { ...adv, status: 'da_tru' };
       }
-      return t;
+      return adv;
     });
-    setAdvanceTransaction(updatedTransactions);
+    setAdvancePayment(updatedAdvances);
 
     setPayroll([...payroll.filter(p => p.month !== selectedMonth), ...newPayrollRecords]);
     alert(`Đã tính lương cho ${newPayrollRecords.length} nhân viên!`);
-  };
-
-  // Revert advance deduction
-  const handleRevertAdvance = () => {
-    if (!revertReason.trim()) {
-      alert('Vui lòng nhập lý do hỗ trợ!');
-      return;
-    }
-
-    const record = revertingPayslip;
-    
-    // Update payroll record
-    const updatedPayroll = payroll.map(p => {
-      if (p.id === record.id) {
-        const newNetPay = p.net_pay + p.advance_deduction;
-        return {
-          ...p,
-          advance_deduction: 0,
-          total_deductions: p.total_deductions - p.advance_deduction,
-          net_pay: newNetPay,
-          advance_reverted: true,
-          advance_revert_reason: revertReason,
-          advance_revert_date: new Date().toISOString(),
-          advance_revert_by: 'Admin'
-        };
-      }
-      return p;
-    });
-    setPayroll(updatedPayroll);
-
-    // Revert advance transactions
-    const updatedTransactions = advanceTransaction.map(t => {
-      if (t.ma_nv === record.emp_id && t.tru_luong && t.thang_tru === selectedMonth) {
-        return { 
-          ...t, 
-          trang_thai: 'chua_tru',
-          reverted: true,
-          revert_reason: revertReason,
-          revert_date: new Date().toISOString()
-        };
-      }
-      return t;
-    });
-    setAdvanceTransaction(updatedTransactions);
-
-    setShowRevertModal(false);
-    setRevertingPayslip(null);
-    setRevertReason('');
-    alert('Đã hoàn tạm ứng thành công!');
   };
 
   const handleViewDetail = (record) => {
@@ -412,12 +337,11 @@ function Payroll() {
       'Phạt': p.total_penalty,
       'Tạm ứng': p.advance_deduction,
       'Tổng khấu trừ': p.total_deductions,
-      'Thực lãnh': p.net_pay,
-      'Hoàn TU': p.advance_reverted ? 'Có' : 'Không'
+      'Thực lãnh': p.net_pay
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = Array(20).fill({ wch: 12 });
+    ws['!cols'] = Array(19).fill({ wch: 12 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Lương ${selectedMonth}`);
     XLSX.writeFile(wb, `Bang-luong-${selectedMonth}.xlsx`);
@@ -563,8 +487,8 @@ function Payroll() {
                   </td>
                   <td className="px-4 py-4 text-sm text-right">
                     {record.advance_deduction > 0 && (
-                      <span className={`font-medium ${record.advance_reverted ? 'text-green-600' : 'text-orange-600'}`}>
-                        {record.advance_reverted ? '(Đã hoàn) ' : ''}{record.advance_deduction.toLocaleString('vi-VN')}
+                      <span className="font-medium text-orange-600">
+                        {record.advance_deduction.toLocaleString('vi-VN')}
                       </span>
                     )}
                   </td>
@@ -600,18 +524,6 @@ function Payroll() {
                       >
                         <Printer className="w-4 h-4" />
                       </button>
-                      {record.advance_deduction > 0 && !record.advance_reverted && record.status === 'unlocked' && (
-                        <button
-                          onClick={() => {
-                            setRevertingPayslip(record);
-                            setShowRevertModal(true);
-                          }}
-                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg"
-                          title="Hoàn tạm ứng"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      )}
                       {record.status === 'locked' ? (
                         <button
                           onClick={() => handleUnlock(record)}
@@ -655,64 +567,7 @@ function Payroll() {
         )}
       </div>
 
-      {/* Revert Modal */}
-      {showRevertModal && revertingPayslip && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="border-b px-6 py-4">
-              <h2 className="text-xl font-bold text-orange-600">⚠️ Xác nhận hoàn tạm ứng</h2>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-sm text-gray-600">Nhân viên</p>
-                <p className="font-medium">{revertingPayslip.emp_code} - {revertingPayslip.emp_name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Số tiền tạm ứng</p>
-                <p className="font-bold text-orange-600 text-lg">{revertingPayslip.advance_deduction.toLocaleString('vi-VN')} đ</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Lý do hỗ trợ *</label>
-                <textarea
-                  value={revertReason}
-                  onChange={(e) => setRevertReason(e.target.value)}
-                  placeholder="VD: Gia đình khó khăn, hoàn cảnh đặc biệt..."
-                  className="w-full px-4 py-2 border rounded-lg"
-                  rows="3"
-                />
-              </div>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm font-medium text-blue-800 mb-2">Sau khi hoàn:</p>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>✓ Tạm ứng về trạng thái "Chưa trừ"</li>
-                  <li>✓ Thực lãnh tăng: +{revertingPayslip.advance_deduction.toLocaleString('vi-VN')} đ</li>
-                  <li>✓ Lưu lịch sử hoàn tạm ứng</li>
-                </ul>
-              </div>
-            </div>
-            <div className="border-t px-6 py-4 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowRevertModal(false);
-                  setRevertingPayslip(null);
-                  setRevertReason('');
-                }}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleRevertAdvance}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-              >
-                Xác nhận hoàn
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Detail Modal - giữ nguyên như cũ */}
+      {/* Detail Modal */}
       {showDetailModal && viewingDetail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -795,7 +650,7 @@ function Payroll() {
                     <span className="font-medium text-red-600">{viewingDetail.total_penalty.toLocaleString('vi-VN')} đ</span>
                   </div>
                   <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Tạm ứng {viewingDetail.advance_reverted && <span className="text-green-600 text-xs">(Đã hoàn)</span>}</span>
+                    <span className="text-gray-600">Tạm ứng</span>
                     <span className="font-medium">{viewingDetail.advance_deduction.toLocaleString('vi-VN')} đ</span>
                   </div>
                   <div className="flex justify-between py-3 bg-red-50 px-3 rounded-lg">
@@ -810,13 +665,6 @@ function Payroll() {
                   <span className="text-4xl font-bold">{viewingDetail.net_pay.toLocaleString('vi-VN')} đ</span>
                 </div>
               </div>
-              {viewingDetail.advance_reverted && (
-                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                  <p className="font-semibold text-green-800">✓ Đã hoàn tạm ứng</p>
-                  <p className="text-sm text-green-700 mt-1">Lý do: {viewingDetail.advance_revert_reason}</p>
-                  <p className="text-sm text-green-600 mt-1">Ngày: {new Date(viewingDetail.advance_revert_date).toLocaleString('vi-VN')}</p>
-                </div>
-              )}
             </div>
             <div className="border-t px-6 py-4 flex justify-end">
               <button
@@ -830,7 +678,7 @@ function Payroll() {
         </div>
       )}
 
-      {/* Print Modal - giữ nguyên như cũ */}
+      {/* Print Modal */}
       {showPrintModal && printingPayslip && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl">
