@@ -1,92 +1,34 @@
-import React, { useState } from 'react';
-import Login from './components/Login';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
 import Employees from './pages/Employees';
+import BonusPenalty from './pages/BonusPenalty';
+import Attendance from './pages/Attendance';
+import Advance from './pages/Advance';
+import Payroll from './pages/Payroll';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState(null);
-  const [currentPage, setCurrentPage] = useState('dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    setCurrentPage('dashboard');
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
-
-  // Render page content
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'customers':
-        return <Customers />;
-      case 'suppliers':
-        return <Suppliers />;
-      case 'employees':
-        return <Employees />;
-      case 'products':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Thành phẩm</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      case 'sales-orders':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Đơn hàng xuất</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      case 'purchase-orders':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Đơn hàng nhập</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      case 'production':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Tiến độ sản xuất</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      case 'invoices':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Hóa đơn</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      case 'payments':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Thu/Chi</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      case 'reports':
-        return <div className="p-6"><h1 className="text-2xl font-bold">Báo cáo</h1><p className="text-gray-600 mt-2">Tính năng đang phát triển...</p></div>;
-      default:
-        return <Dashboard />;
-    }
-  };
-
-  // Show login if not logged in
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
-  }
-
-  // Main layout
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar 
-        currentPage={currentPage} 
-        onNavigate={setCurrentPage}
-        onLogout={handleLogout}
-        isOpen={isMobileMenuOpen}
-        onClose={closeMobileMenu}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          user={user}
-          onMenuToggle={toggleMobileMenu}
-        />
-        <main className="flex-1 overflow-y-auto">
-          {renderPage()}
-        </main>
+    <Router>
+      <div className="flex">
+        <Sidebar />
+        <div className="ml-64 flex-1 bg-gray-50 min-h-screen">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/bonus-penalty" element={<BonusPenalty />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/advance" element={<Advance />} />
+            <Route path="/payroll" element={<Payroll />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </Router>
   );
 }
 
