@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, TrendingDown, DollarSign, Calendar } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, TrendingDown, DollarSign, Calendar, Wallet } from 'lucide-react';
 
 const removeVietnameseTones = (str) => {
   return str
@@ -15,12 +15,24 @@ function Advance() {
     return saved ? JSON.parse(saved) : [];
   };
 
+  const loadBankAccounts = () => {
+    const saved = localStorage.getItem('bank_accounts');
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  const loadCashAccounts = () => {
+    const saved = localStorage.getItem('cash_accounts');
+    return saved ? JSON.parse(saved) : [];
+  };
+
   const loadAdvances = () => {
     const saved = localStorage.getItem('advance_payment');
     return saved ? JSON.parse(saved) : [];
   };
 
   const [employees] = useState(loadEmployees);
+  const [bankAccounts] = useState(loadBankAccounts);
+  const [cashAccounts, setCashAccounts] = useState(loadCashAccounts);
   const [advances, setAdvances] = useState(loadAdvances);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -31,15 +43,21 @@ function Advance() {
     emp_id: '',
     date: new Date().toISOString().slice(0, 10),
     amount: '',
-    reason: '',
+    reason: 'Ứng lương',
     month: new Date().toISOString().slice(0, 7),
     approver: '',
-    note: ''
+    note: '',
+    source_type: 'cash', // 'cash' hoặc 'bank'
+    source_id: ''
   });
 
   useEffect(() => {
     localStorage.setItem('advance_payment', JSON.stringify(advances));
   }, [advances]);
+
+  useEffect(() => {
+    localStorage.setItem('cash_accounts', JSON.stringify(cashAccounts));
+  }, [cashAccounts]);
 
   const getEmployeeName = (empId) => {
     const emp = employees.find(e => e.id === empId);
@@ -51,48 +69,104 @@ function Advance() {
     return emp ? emp.code : 'N/A';
   };
 
+  const getSourceName = (sourceType, sourceId) => {
+    if (sourceType === 'cash') {
+      const acc = cashAccounts.find(a => a.id === sourceId);
+      return acc ? acc.ten : 'Tiền mặt';
+    } else {
+      const bank = bankAccounts.find(b => b.id === sourceId);
+      return bank ? `${bank.ma} (${bank.so_tk})` : 'N/A';
+    }
+  };
+
   const handleSubmit = () => {
     if (!form.emp_id || !form.amount || !form.reason.trim()) {
       alert('Vui lòng điền đầy đủ thông tin!');
       return;
     }
 
-    if (parseFloat(form.amount) <= 0) {
+    if (!form.source_id) {
+      alert('Vui lòng chọn nguồn tiền!');
+      return;
+    }
+
+    const amount = parseFloat(form.amount);
+    if (amount <= 0) {
       alert('Số tiền phải lớn hơn 0!');
       return;
     }
 
+    // Check balance
+    if (form.source_type === 'cash') {
+      const cashAccount = cashAccounts.find(a => a.id === parseInt(form.source_id));
+      if (cashAccount && cashAccount.so_du < amount) {
+        alert(`Số dư không đủ!\nSố dư: ${cashAccount.so_du.toLocaleString('vi-VN')} đ`);
+        return;
+      }
+    }
+
     if (editingAdvance) {
+      // Return old money first
+      if (editingAdvance.source_type === 'cash') {
+        setCashAccounts(cashAccounts.map(acc =>
+          acc.id === editingAdvance.source_id
+            ? { ...acc, so_du: acc.so_du + editingAdvance.amount }
+            : acc
+        ));
+      }
+
+      // Deduct new money
+      if (form.source_type === 'cash') {
+        setCashAccounts(cashAccounts.map(acc =>
+          acc.id === parseInt(form.source_id)
+            ? { ...acc, so_du: acc.so_du - amount }
+            : acc
+        ));
+      }
+
       setAdvances(advances.map(adv =>
         adv.id === editingAdvance.id
           ? {
               ...adv,
               emp_id: parseInt(form.emp_id),
               date: form.date,
-              amount: parseFloat(form.amount),
+              amount: amount,
               reason: form.reason,
               month: form.month,
               approver: form.approver,
-              note: form.note
+              note: form.note,
+              source_type: form.source_type,
+              source_id: parseInt(form.source_id)
             }
           : adv
       ));
-      alert('Đã cập nhật tạm ứng!');
+      alert('Đã cập nhật ứng lương!');
     } else {
+      // Deduct money
+      if (form.source_type === 'cash') {
+        setCashAccounts(cashAccounts.map(acc =>
+          acc.id === parseInt(form.source_id)
+            ? { ...acc, so_du: acc.so_du - amount }
+            : acc
+        ));
+      }
+
       const newAdvance = {
         id: Date.now(),
         emp_id: parseInt(form.emp_id),
         date: form.date,
-        amount: parseFloat(form.amount),
+        amount: amount,
         reason: form.reason,
         month: form.month,
         status: 'chua_tru',
         approver: form.approver,
         note: form.note,
+        source_type: form.source_type,
+        source_id: parseInt(form.source_id),
         created_date: new Date().toISOString()
       };
       setAdvances([...advances, newAdvance]);
-      alert('Đã thêm tạm ứng!');
+      alert('Đã thêm ứng lương!');
     }
 
     setShowModal(false);
@@ -101,10 +175,12 @@ function Advance() {
       emp_id: '',
       date: new Date().toISOString().slice(0, 10),
       amount: '',
-      reason: '',
+      reason: 'Ứng lương',
       month: new Date().toISOString().slice(0, 7),
       approver: '',
-      note: ''
+      note: '',
+      source_type: 'cash',
+      source_id: ''
     });
   };
 
@@ -117,14 +193,24 @@ function Advance() {
       reason: advance.reason,
       month: advance.month,
       approver: advance.approver || '',
-      note: advance.note || ''
+      note: advance.note || '',
+      source_type: advance.source_type || 'cash',
+      source_id: advance.source_id ? advance.source_id.toString() : ''
     });
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Xóa tạm ứng này?')) {
-      setAdvances(advances.filter(adv => adv.id !== id));
+  const handleDelete = (advance) => {
+    if (window.confirm('Xóa ứng lương này?')) {
+      // Return money
+      if (advance.source_type === 'cash') {
+        setCashAccounts(cashAccounts.map(acc =>
+          acc.id === advance.source_id
+            ? { ...acc, so_du: acc.so_du + advance.amount }
+            : acc
+        ));
+      }
+      setAdvances(advances.filter(adv => adv.id !== advance.id));
     }
   };
 
@@ -150,12 +236,16 @@ function Advance() {
 
   const summary = getSummary();
 
+  // Get all payment sources
+  const cashSources = cashAccounts.filter(acc => acc.trang_thai === 'active');
+  const bankSources = bankAccounts.filter(bank => bank.trang_thai === 'active');
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Tạm ứng</h1>
-          <p className="text-gray-600">Quản lý tạm ứng & trừ lương</p>
+          <h1 className="text-2xl font-bold text-gray-800">Ứng lương</h1>
+          <p className="text-gray-600">Quản lý ứng lương nhân viên</p>
         </div>
         <button
           onClick={() => {
@@ -164,7 +254,7 @@ function Advance() {
           }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
-          <Plus className="w-5 h-5" />Thêm tạm ứng
+          <Plus className="w-5 h-5" />Thêm ứng lương
         </button>
       </div>
 
@@ -209,7 +299,7 @@ function Advance() {
           <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm">Tổng tạm ứng</p>
+                <p className="text-purple-100 text-sm">Tổng ứng</p>
                 <p className="text-2xl font-bold mt-1">{(summary.total / 1000000).toFixed(1)}M</p>
               </div>
               <DollarSign className="w-12 h-12 text-purple-200" />
@@ -246,8 +336,8 @@ function Advance() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lý do</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số tiền</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Nguồn tiền</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tháng trừ</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Người duyệt</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
               </tr>
             </thead>
@@ -270,12 +360,17 @@ function Advance() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Wallet className="w-4 h-4 text-gray-500" />
+                        <span className="text-xs text-gray-600">
+                          {getSourceName(advance.source_type, advance.source_id)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-center">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                         {advance.month}
                       </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-center text-gray-600">
-                      {advance.approver || '-'}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex justify-center gap-2">
@@ -287,7 +382,7 @@ function Advance() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(advance.id)}
+                          onClick={() => handleDelete(advance)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                           title="Xóa"
                         >
@@ -303,17 +398,17 @@ function Advance() {
         </div>
         {filteredAdvances.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            Không có tạm ứng nào trong tháng này
+            Không có ứng lương nào trong tháng này
           </div>
         )}
       </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="border-b px-6 py-4">
               <h2 className="text-xl font-bold">
-                {editingAdvance ? 'Sửa tạm ứng' : 'Thêm tạm ứng'}
+                {editingAdvance ? 'Sửa ứng lương' : 'Thêm ứng lương'}
               </h2>
             </div>
             <div className="p-6 space-y-4">
@@ -359,13 +454,68 @@ function Advance() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Lý do *</label>
-                <textarea
+                <input
+                  type="text"
                   value={form.reason}
                   onChange={(e) => setForm({ ...form, reason: e.target.value })}
                   placeholder="VD: Ứng lương, Khó khăn tạm thời..."
                   className="w-full px-4 py-2 border rounded-lg"
-                  rows="2"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Nguồn tiền *</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      id="source-cash"
+                      checked={form.source_type === 'cash'}
+                      onChange={() => setForm({ ...form, source_type: 'cash', source_id: '' })}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="source-cash" className="text-sm font-medium">Tiền mặt / Quỹ</label>
+                  </div>
+                  {form.source_type === 'cash' && (
+                    <select
+                      value={form.source_id}
+                      onChange={(e) => setForm({ ...form, source_id: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg ml-6"
+                    >
+                      <option value="">Chọn quỹ</option>
+                      {cashSources.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.ten} ({acc.so_du.toLocaleString('vi-VN')} đ)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      id="source-bank"
+                      checked={form.source_type === 'bank'}
+                      onChange={() => setForm({ ...form, source_type: 'bank', source_id: '' })}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="source-bank" className="text-sm font-medium">Ngân hàng</label>
+                  </div>
+                  {form.source_type === 'bank' && (
+                    <select
+                      value={form.source_id}
+                      onChange={(e) => setForm({ ...form, source_id: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg ml-6"
+                    >
+                      <option value="">Chọn tài khoản</option>
+                      {bankSources.map(bank => (
+                        <option key={bank.id} value={bank.id}>
+                          {bank.ma} - {bank.so_tk} ({bank.ngan_hang})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -413,10 +563,12 @@ function Advance() {
                     emp_id: '',
                     date: new Date().toISOString().slice(0, 10),
                     amount: '',
-                    reason: '',
+                    reason: 'Ứng lương',
                     month: new Date().toISOString().slice(0, 7),
                     approver: '',
-                    note: ''
+                    note: '',
+                    source_type: 'cash',
+                    source_id: ''
                   });
                 }}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, TrendingDown, TrendingUp, DollarSign, Calendar, FileText, Upload, Download } from 'lucide-react';
+import { Plus, Search, Eye, TrendingDown, TrendingUp, DollarSign, Calendar, FileText, Upload, Download, Wallet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const removeVietnameseTones = (str) => {
@@ -13,6 +13,11 @@ const removeVietnameseTones = (str) => {
 function AdvanceTransaction() {
   const loadEmployees = () => {
     const saved = localStorage.getItem('employees_v2');
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  const loadBankAccounts = () => {
+    const saved = localStorage.getItem('bank_accounts');
     return saved ? JSON.parse(saved) : [];
   };
 
@@ -37,6 +42,7 @@ function AdvanceTransaction() {
   };
 
   const [employees] = useState(loadEmployees);
+  const [bankAccounts] = useState(loadBankAccounts);
   const [cashAccounts, setCashAccounts] = useState(loadCashAccounts);
   const [cashTransactions, setCashTransactions] = useState(loadCashTransactions);
   const [transactions, setTransactions] = useState(loadAdvanceTransactions);
@@ -46,9 +52,7 @@ function AdvanceTransaction() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
-  const [showBatchRefundModal, setShowBatchRefundModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const [addForm, setAddForm] = useState({
     type: 'chi',
@@ -56,7 +60,8 @@ function AdvanceTransaction() {
     amount: '',
     date: new Date().toISOString().slice(0, 10),
     reason: 'Mua vật tư',
-    account_id: '',
+    source_type: 'cash',
+    source_id: '',
     note: ''
   });
 
@@ -70,7 +75,8 @@ function AdvanceTransaction() {
       { category: 'chi_phi_khac', amount: 0 }
     ],
     remaining_action: 'hoan_quy',
-    account_id: '',
+    source_type: 'cash',
+    source_id: '',
     note: ''
   });
 
@@ -104,13 +110,18 @@ function AdvanceTransaction() {
     return emp ? `${emp.code} - ${emp.name}` : 'N/A';
   };
 
-  const getAccountName = (accountId) => {
-    const account = cashAccounts.find(acc => acc.id === accountId);
-    return account ? account.ten : 'N/A';
+  const getSourceName = (sourceType, sourceId) => {
+    if (sourceType === 'cash') {
+      const acc = cashAccounts.find(a => a.id === sourceId);
+      return acc ? acc.ten : 'Tiền mặt';
+    } else {
+      const bank = bankAccounts.find(b => b.id === sourceId);
+      return bank ? `${bank.ma} (${bank.so_tk})` : 'N/A';
+    }
   };
 
   const handleAddTransaction = () => {
-    if (!addForm.emp_id || !addForm.amount || !addForm.account_id) {
+    if (!addForm.emp_id || !addForm.amount || !addForm.source_id) {
       alert('Vui lòng điền đầy đủ thông tin!');
       return;
     }
@@ -121,11 +132,13 @@ function AdvanceTransaction() {
       return;
     }
 
-    const account = cashAccounts.find(acc => acc.id === parseInt(addForm.account_id));
-    
-    if (addForm.type === 'chi' && account.so_du < amount) {
-      alert(`Số dư không đủ!\nSố dư: ${account.so_du.toLocaleString('vi-VN')} đ\nCần: ${amount.toLocaleString('vi-VN')} đ`);
-      return;
+    // Check balance for cash
+    if (addForm.type === 'chi' && addForm.source_type === 'cash') {
+      const account = cashAccounts.find(acc => acc.id === parseInt(addForm.source_id));
+      if (account && account.so_du < amount) {
+        alert(`Số dư không đủ!\nSố dư: ${account.so_du.toLocaleString('vi-VN')} đ\nCần: ${amount.toLocaleString('vi-VN')} đ`);
+        return;
+      }
     }
 
     const newTransaction = {
@@ -135,28 +148,31 @@ function AdvanceTransaction() {
       amount: amount,
       date: addForm.date,
       reason: addForm.reason,
-      account_id: parseInt(addForm.account_id),
+      source_type: addForm.source_type,
+      source_id: parseInt(addForm.source_id),
       status: 'chua_quyet_toan',
       note: addForm.note,
       created_date: new Date().toISOString()
     };
 
     // Update cash account
-    const updatedAccounts = cashAccounts.map(acc => {
-      if (acc.id === parseInt(addForm.account_id)) {
-        return {
-          ...acc,
-          so_du: addForm.type === 'chi' ? acc.so_du - amount : acc.so_du + amount
-        };
-      }
-      return acc;
-    });
-    setCashAccounts(updatedAccounts);
+    if (addForm.source_type === 'cash') {
+      const updatedAccounts = cashAccounts.map(acc => {
+        if (acc.id === parseInt(addForm.source_id)) {
+          return {
+            ...acc,
+            so_du: addForm.type === 'chi' ? acc.so_du - amount : acc.so_du + amount
+          };
+        }
+        return acc;
+      });
+      setCashAccounts(updatedAccounts);
+    }
 
     // Create cash transaction
     const cashTransaction = {
       id: Date.now() + 1,
-      tai_khoan_id: parseInt(addForm.account_id),
+      tai_khoan_id: parseInt(addForm.source_id),
       ngay: addForm.date,
       loai: addForm.type === 'chi' ? 'chi' : 'thu',
       danh_muc: 'tam_ung_nv',
@@ -178,7 +194,8 @@ function AdvanceTransaction() {
       amount: '',
       date: new Date().toISOString().slice(0, 10),
       reason: 'Mua vật tư',
-      account_id: '',
+      source_type: 'cash',
+      source_id: '',
       note: ''
     });
     alert(`Đã ${addForm.type === 'chi' ? 'chi' : 'thu'} tạm ứng thành công!`);
@@ -195,7 +212,7 @@ function AdvanceTransaction() {
       return;
     }
 
-    if (remaining > 0 && !settlementForm.account_id) {
+    if (remaining > 0 && !settlementForm.source_id) {
       alert('Vui lòng chọn tài khoản để hoàn tiền!');
       return;
     }
@@ -208,7 +225,8 @@ function AdvanceTransaction() {
       total_spent: totalSpent,
       remaining: remaining,
       remaining_action: settlementForm.remaining_action,
-      account_id: settlementForm.account_id ? parseInt(settlementForm.account_id) : null,
+      source_type: settlementForm.source_type,
+      source_id: settlementForm.source_id ? parseInt(settlementForm.source_id) : null,
       note: settlementForm.note,
       created_date: new Date().toISOString()
     };
@@ -223,9 +241,9 @@ function AdvanceTransaction() {
     ));
 
     // Refund to cash account if needed
-    if (remaining > 0 && settlementForm.remaining_action === 'hoan_quy') {
+    if (remaining > 0 && settlementForm.remaining_action === 'hoan_quy' && settlementForm.source_type === 'cash') {
       const updatedAccounts = cashAccounts.map(acc => {
-        if (acc.id === parseInt(settlementForm.account_id)) {
+        if (acc.id === parseInt(settlementForm.source_id)) {
           return { ...acc, so_du: acc.so_du + remaining };
         }
         return acc;
@@ -235,7 +253,7 @@ function AdvanceTransaction() {
       // Create refund cash transaction
       const refundTransaction = {
         id: Date.now() + 1,
-        tai_khoan_id: parseInt(settlementForm.account_id),
+        tai_khoan_id: parseInt(settlementForm.source_id),
         ngay: new Date().toISOString().slice(0, 10),
         loai: 'thu',
         danh_muc: 'tam_ung_nv',
@@ -262,21 +280,11 @@ function AdvanceTransaction() {
         { category: 'chi_phi_khac', amount: 0 }
       ],
       remaining_action: 'hoan_quy',
-      account_id: '',
+      source_type: 'cash',
+      source_id: '',
       note: ''
     });
     alert('Đã quyết toán thành công!');
-  };
-
-  const handleBatchRefund = (empId) => {
-    const empTransactions = transactions.filter(t =>
-      t.emp_id === empId &&
-      t.type === 'chi' &&
-      t.status === 'chua_quyet_toan'
-    );
-
-    setSelectedEmployee(empId);
-    setShowBatchRefundModal(true);
   };
 
   const handleImportExcel = (e) => {
@@ -345,11 +353,14 @@ function AdvanceTransaction() {
 
   const summary = getSummary();
 
+  const cashSources = cashAccounts.filter(acc => acc.trang_thai === 'active');
+  const bankSources = bankAccounts.filter(bank => bank.trang_thai === 'active');
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Giao dịch tạm ứng</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Tạm ứng</h1>
           <p className="text-gray-600">Quản lý tạm ứng mua hàng & thu chi</p>
         </div>
         <button
@@ -450,6 +461,7 @@ function AdvanceTransaction() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nhân viên</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lý do</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số tiền</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Nguồn</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
               </tr>
@@ -477,6 +489,14 @@ function AdvanceTransaction() {
                     }`}>
                       {transaction.type === 'chi' ? '-' : '+'}{transaction.amount.toLocaleString('vi-VN')} đ
                     </span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Wallet className="w-4 h-4 text-gray-500" />
+                      <span className="text-xs text-gray-600">
+                        {getSourceName(transaction.source_type, transaction.source_id)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-center">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -530,7 +550,7 @@ function AdvanceTransaction() {
       {/* Add Transaction Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="border-b px-6 py-4">
               <h2 className="text-xl font-bold">Thêm giao dịch tạm ứng</h2>
             </div>
@@ -598,19 +618,58 @@ function AdvanceTransaction() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Tài khoản *</label>
-                <select
-                  value={addForm.account_id}
-                  onChange={(e) => setAddForm({ ...addForm, account_id: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
-                >
-                  <option value="">Chọn tài khoản</option>
-                  {cashAccounts.filter(acc => acc.trang_thai === 'active').map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.ten} ({acc.so_du.toLocaleString('vi-VN')} đ)
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium mb-2">Nguồn tiền *</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      id="add-source-cash"
+                      checked={addForm.source_type === 'cash'}
+                      onChange={() => setAddForm({ ...addForm, source_type: 'cash', source_id: '' })}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="add-source-cash" className="text-sm font-medium">Tiền mặt / Quỹ</label>
+                  </div>
+                  {addForm.source_type === 'cash' && (
+                    <select
+                      value={addForm.source_id}
+                      onChange={(e) => setAddForm({ ...addForm, source_id: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg ml-6"
+                    >
+                      <option value="">Chọn quỹ</option>
+                      {cashSources.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.ten} ({acc.so_du.toLocaleString('vi-VN')} đ)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      id="add-source-bank"
+                      checked={addForm.source_type === 'bank'}
+                      onChange={() => setAddForm({ ...addForm, source_type: 'bank', source_id: '' })}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="add-source-bank" className="text-sm font-medium">Ngân hàng</label>
+                  </div>
+                  {addForm.source_type === 'bank' && (
+                    <select
+                      value={addForm.source_id}
+                      onChange={(e) => setAddForm({ ...addForm, source_id: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg ml-6"
+                    >
+                      <option value="">Chọn tài khoản</option>
+                      {bankSources.map(bank => (
+                        <option key={bank.id} value={bank.id}>
+                          {bank.ma} - {bank.so_tk} ({bank.ngan_hang})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -634,7 +693,8 @@ function AdvanceTransaction() {
                     amount: '',
                     date: new Date().toISOString().slice(0, 10),
                     reason: 'Mua vật tư',
-                    account_id: '',
+                    source_type: 'cash',
+                    source_id: '',
                     note: ''
                   });
                 }}
@@ -734,17 +794,56 @@ function AdvanceTransaction() {
 
                   {settlementForm.remaining_action === 'hoan_quy' && (
                     <div>
-                      <label className="block text-sm font-medium mb-2">Hoàn vào tài khoản *</label>
-                      <select
-                        value={settlementForm.account_id}
-                        onChange={(e) => setSettlementForm({ ...settlementForm, account_id: e.target.value })}
-                        className="w-full px-4 py-2 border rounded-lg"
-                      >
-                        <option value="">Chọn tài khoản</option>
-                        {cashAccounts.filter(acc => acc.trang_thai === 'active').map(acc => (
-                          <option key={acc.id} value={acc.id}>{acc.ten}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium mb-2">Hoàn vào *</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="refund-cash"
+                            checked={settlementForm.source_type === 'cash'}
+                            onChange={() => setSettlementForm({ ...settlementForm, source_type: 'cash', source_id: '' })}
+                            className="w-4 h-4"
+                          />
+                          <label htmlFor="refund-cash" className="text-sm font-medium">Tiền mặt / Quỹ</label>
+                        </div>
+                        {settlementForm.source_type === 'cash' && (
+                          <select
+                            value={settlementForm.source_id}
+                            onChange={(e) => setSettlementForm({ ...settlementForm, source_id: e.target.value })}
+                            className="w-full px-4 py-2 border rounded-lg ml-6"
+                          >
+                            <option value="">Chọn quỹ</option>
+                            {cashSources.map(acc => (
+                              <option key={acc.id} value={acc.id}>{acc.ten}</option>
+                            ))}
+                          </select>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="refund-bank"
+                            checked={settlementForm.source_type === 'bank'}
+                            onChange={() => setSettlementForm({ ...settlementForm, source_type: 'bank', source_id: '' })}
+                            className="w-4 h-4"
+                          />
+                          <label htmlFor="refund-bank" className="text-sm font-medium">Ngân hàng</label>
+                        </div>
+                        {settlementForm.source_type === 'bank' && (
+                          <select
+                            value={settlementForm.source_id}
+                            onChange={(e) => setSettlementForm({ ...settlementForm, source_id: e.target.value })}
+                            className="w-full px-4 py-2 border rounded-lg ml-6"
+                          >
+                            <option value="">Chọn tài khoản</option>
+                            {bankSources.map(bank => (
+                              <option key={bank.id} value={bank.id}>
+                                {bank.ma} - {bank.so_tk}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
@@ -776,7 +875,8 @@ function AdvanceTransaction() {
                       { category: 'chi_phi_khac', amount: 0 }
                     ],
                     remaining_action: 'hoan_quy',
-                    account_id: '',
+                    source_type: 'cash',
+                    source_id: '',
                     note: ''
                   });
                 }}

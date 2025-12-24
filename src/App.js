@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
+import Material from './pages/Material';
 import Employees from './pages/Employees';
 import BonusPenalty from './pages/BonusPenalty';
 import Attendance from './pages/Attendance';
@@ -24,6 +25,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/materials" element={<Material />} />
             <Route path="/employees" element={<Employees />} />
             <Route path="/bonus-penalty" element={<BonusPenalty />} />
             <Route path="/attendance" element={<Attendance />} />
