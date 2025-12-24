@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Building, UserCircle, Award, Clock, DollarSign, Receipt, Wallet, ArrowRightLeft, Tag, CreditCard, Package } from 'lucide-react';
+import { LayoutDashboard, Users, Building, UserCircle, Award, Clock, DollarSign, Receipt, Wallet, ArrowRightLeft, Tag, CreditCard, Package, Box } from 'lucide-react';
 
 function Sidebar() {
   const location = useLocation();
@@ -10,6 +10,7 @@ function Sidebar() {
     { icon: Users, label: 'Khách hàng', path: '/customers' },
     { icon: Building, label: 'Nhà cung cấp', path: '/suppliers' },
     { icon: Package, label: 'Nguyên liệu', path: '/materials' },
+    { icon: Box, label: 'Thành phẩm', path: '/products' },
     { icon: UserCircle, label: 'Nhân viên', path: '/employees' },
     { icon: Award, label: 'Thưởng/Phạt', path: '/bonus-penalty' },
     { icon: Clock, label: 'Chấm công', path: '/attendance' },

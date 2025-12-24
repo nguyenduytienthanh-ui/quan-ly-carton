@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, History, Upload, Download, TrendingUp, Package } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import TextInput from '../components/TextInput';
+import TextArea from '../components/TextArea';
 
 const removeVietnameseTones = (str) => {
   return str
@@ -604,10 +606,9 @@ function Material() {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium mb-2">Tên nguyên liệu *</label>
-                  <input
-                    type="text"
+                  <TextInput
                     value={form.ten}
-                    onChange={(e) => setForm({ ...form, ten: e.target.value })}
+                    onChange={(value) => setForm({ ...form, ten: value })}
                     placeholder="VD: Màu"
                     className="w-full px-4 py-2 border rounded-lg"
                   />
@@ -617,10 +618,9 @@ function Material() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Đơn vị tính *</label>
-                  <input
-                    type="text"
+                  <TextInput
                     value={form.dvt}
-                    onChange={(e) => setForm({ ...form, dvt: e.target.value })}
+                    onChange={(value) => setForm({ ...form, dvt: value })}
                     placeholder="VD: Cái, Kg..."
                     className="w-full px-4 py-2 border rounded-lg"
                   />
@@ -649,9 +649,9 @@ function Material() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Ghi chú</label>
-                <textarea
+                <TextArea
                   value={form.ghi_chu}
-                  onChange={(e) => setForm({ ...form, ghi_chu: e.target.value })}
+                  onChange={(value) => setForm({ ...form, ghi_chu: value })}
                   placeholder="Ghi chú về nguyên liệu..."
                   className="w-full px-4 py-2 border rounded-lg"
                   rows="2"
@@ -735,10 +735,9 @@ function Material() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Lý do</label>
-                <input
-                  type="text"
+                <TextInput
                   value={priceForm.ly_do}
-                  onChange={(e) => setPriceForm({ ...priceForm, ly_do: e.target.value })}
+                  onChange={(value) => setPriceForm({ ...priceForm, ly_do: value })}
                   placeholder="VD: Nhà cung cấp tăng giá..."
                   className="w-full px-4 py-2 border rounded-lg"
                 />
