@@ -3,6 +3,7 @@ import { Plus, Search, Edit, Trash2, Copy, Eye, Download, ChevronRight } from 'l
 import * as XLSX from 'xlsx';
 import TextInput from '../components/TextInput';
 import TextArea from '../components/TextArea';
+import FileUploadCompact from '../components/FileUploadCompact';
 
 const removeVietnameseTones = (str) => {
   return str
@@ -64,7 +65,21 @@ function Product() {
     cho_phep_sai_lech: false,
     sai_lech_so_luong: '',
     sai_lech_phan_tram: '',
-    cong_doan: {},
+    cong_doan: {
+      ma_phim: '',
+      ma_phim_file: null,
+      so_mau: '',
+      in: '',
+      boi: '',
+      can_mang: '',
+      ma_khuon: '',
+      ma_khuon_file: null,
+      be: '',
+      chap: '',
+      dong: '',
+      dan: '',
+      khac: ''
+    },
     co_thanh_phan_con: false,
     thanh_phan_con: [],
     kieu: '',
@@ -74,6 +89,47 @@ function Product() {
   useEffect(() => {
     localStorage.setItem('products', JSON.stringify(products));
   }, [products]);
+
+  // File upload handlers
+  const handleMaPhimFileChange = (fileData) => {
+    setForm({
+      ...form,
+      cong_doan: {
+        ...form.cong_doan,
+        ma_phim_file: fileData
+      }
+    });
+  };
+
+  const handleMaPhimFileRemove = () => {
+    setForm({
+      ...form,
+      cong_doan: {
+        ...form.cong_doan,
+        ma_phim_file: null
+      }
+    });
+  };
+
+  const handleMaKhuonFileChange = (fileData) => {
+    setForm({
+      ...form,
+      cong_doan: {
+        ...form.cong_doan,
+        ma_khuon_file: fileData
+      }
+    });
+  };
+
+  const handleMaKhuonFileRemove = () => {
+    setForm({
+      ...form,
+      cong_doan: {
+        ...form.cong_doan,
+        ma_khuon_file: null
+      }
+    });
+  };
 
   const getKTSXThucTe = (product) => {
     const dai = product.sx_dai || product.po_dai;
@@ -206,7 +262,21 @@ function Product() {
       cho_phep_sai_lech: false,
       sai_lech_so_luong: '',
       sai_lech_phan_tram: '',
-      cong_doan: {},
+      cong_doan: {
+        ma_phim: '',
+        ma_phim_file: null,
+        so_mau: '',
+        in: '',
+        boi: '',
+        can_mang: '',
+        ma_khuon: '',
+        ma_khuon_file: null,
+        be: '',
+        chap: '',
+        dong: '',
+        dan: '',
+        khac: ''
+      },
       co_thanh_phan_con: false,
       thanh_phan_con: [],
       kieu: '',
@@ -234,7 +304,21 @@ function Product() {
       cho_phep_sai_lech: product.cho_phep_sai_lech,
       sai_lech_so_luong: product.sai_lech_so_luong || '',
       sai_lech_phan_tram: product.sai_lech_phan_tram || '',
-      cong_doan: product.cong_doan || {},
+      cong_doan: product.cong_doan || {
+        ma_phim: '',
+        ma_phim_file: null,
+        so_mau: '',
+        in: '',
+        boi: '',
+        can_mang: '',
+        ma_khuon: '',
+        ma_khuon_file: null,
+        be: '',
+        chap: '',
+        dong: '',
+        dan: '',
+        khac: ''
+      },
       co_thanh_phan_con: product.co_thanh_phan_con || false,
       thanh_phan_con: product.thanh_phan_con || [],
       kieu: product.kieu || '',
@@ -309,12 +393,48 @@ function Product() {
     if (!searchTerm) return true;
     const searchLower = removeVietnameseTones(searchTerm.toLowerCase());
     const customer = customers.find(c => c.id === p.khach_hang_id);
+    const ktsx = getKTSXThucTe(p);
+    
+    // SEARCH ALL - Tìm trong TẤT CẢ fields
     const searchableFields = [
       p.ma_hang,
       p.ten_san_pham,
       customer ? customer.name : '',
-      p.ghi_chu || ''
+      p.don_gia?.toString() || '',
+      ktsx.display,
+      p.song || '',
+      p.dvt || '',
+      p.kieu || '',
+      p.ghi_chu || '',
+      // Công đoạn
+      p.cong_doan?.ma_phim || '',
+      p.cong_doan?.ma_khuon || '',
+      p.cong_doan?.so_mau?.toString() || '',
+      p.cong_doan?.in?.toString() || '',
+      p.cong_doan?.boi?.toString() || '',
+      p.cong_doan?.can_mang?.toString() || '',
+      p.cong_doan?.be?.toString() || '',
+      p.cong_doan?.chap?.toString() || '',
+      p.cong_doan?.dong?.toString() || '',
+      p.cong_doan?.dan?.toString() || '',
+      p.cong_doan?.khac?.toString() || '',
+      // Kích thước PO
+      p.po_dai?.toString() || '',
+      p.po_rong?.toString() || '',
+      p.po_cao?.toString() || '',
+      // Kích thước SX
+      p.sx_dai?.toString() || '',
+      p.sx_rong?.toString() || '',
+      p.sx_cao?.toString() || '',
+      // Hoa hồng
+      p.hoa_hong_co_dinh?.toString() || '',
+      p.hoa_hong_phan_tram?.toString() || '',
+      // Thành phần con
+      p.co_thanh_phan_con ? 'có con' : '',
+      ...(p.thanh_phan_con || []).map(con => con.ten || ''),
+      ...(p.thanh_phan_con || []).map(con => con.ma_hang_con || '')
     ];
+    
     return searchableFields.some(field =>
       removeVietnameseTones(field.toLowerCase()).includes(searchLower)
     );
@@ -384,17 +504,37 @@ function Product() {
 
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div>
-          <label className="block text-sm font-medium mb-2">Tìm kiếm</label>
+          <label className="block text-sm font-medium mb-2">Tìm kiếm tất cả</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Mã hàng, tên sản phẩm, khách hàng..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
+              placeholder="Mã hàng, tên, khách hàng, giá, KTSX, sóng, mã phim, mã khuôn..."
+              className="w-full pl-10 pr-10 py-2 border rounded-lg"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-colors"
+                title="Xóa tìm kiếm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
+          {searchTerm && (
+            <p className="text-xs text-gray-500 mt-2">
+              Đang tìm: <span className="font-medium text-blue-600">"{searchTerm}"</span> - 
+              Tìm thấy: <span className="font-medium text-green-600">{filteredProducts.length}</span> kết quả
+            </p>
+          )}
+          <p className="text-xs text-gray-400 mt-1">
+            💡 Có thể tìm theo: mã, tên, khách hàng, giá (VD: 22000), KTSX (VD: 60x40), sóng (B/BC/E), mã phim, mã khuôn, thành phần con...
+          </p>
         </div>
       </div>
 
@@ -408,6 +548,8 @@ function Product() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Có con</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">KTSX</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Mã phim</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Mã khuôn</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Đơn giá</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
               </tr>
@@ -434,6 +576,49 @@ function Product() {
                         {ktsx.display}
                       </span>
                     </td>
+                    
+                    {/* Mã phim */}
+                    <td className="px-4 py-4 text-sm text-center">
+                      {product.cong_doan?.ma_phim ? (
+                        product.cong_doan.ma_phim_file ? (
+                          <a
+                            href={product.cong_doan.ma_phim_file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                            title="Click để xem file"
+                          >
+                            📄 {product.cong_doan.ma_phim}
+                          </a>
+                        ) : (
+                          <span className="text-gray-600">{product.cong_doan.ma_phim}</span>
+                        )
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    
+                    {/* Mã khuôn */}
+                    <td className="px-4 py-4 text-sm text-center">
+                      {product.cong_doan?.ma_khuon ? (
+                        product.cong_doan.ma_khuon_file ? (
+                          <a
+                            href={product.cong_doan.ma_khuon_file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                            title="Click để xem file"
+                          >
+                            📄 {product.cong_doan.ma_khuon}
+                          </a>
+                        ) : (
+                          <span className="text-gray-600">{product.cong_doan.ma_khuon}</span>
+                        )
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    
                     <td className="px-4 py-4 text-sm text-right font-medium text-green-600">
                       {product.don_gia.toLocaleString('vi-VN')}
                     </td>
@@ -638,34 +823,181 @@ function Product() {
 
                   <div className="border-t pt-4">
                     <h4 className="font-medium mb-3">Công đoạn (Thùng)</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {CONG_DOAN_MAC_DINH.map(cd => (
-                        <div key={cd.ma} className="flex items-center gap-2">
-                          <label className="w-28 text-sm font-medium">{cd.ten}:</label>
-                          {cd.type === 'text' ? (
-                            <TextInput
-                              value={form.cong_doan[cd.ma] || ''}
-                              onChange={(value) => setForm({
-                                ...form,
-                                cong_doan: { ...form.cong_doan, [cd.ma]: value }
-                              })}
-                              placeholder={cd.placeholder}
-                              className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                            />
-                          ) : (
-                            <input
-                              type="number"
-                              value={form.cong_doan[cd.ma] || ''}
-                              onChange={(e) => setForm({
-                                ...form,
-                                cong_doan: { ...form.cong_doan, [cd.ma]: e.target.value }
-                              })}
-                              placeholder={cd.placeholder}
-                              className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                            />
-                          )}
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Mã phim + Upload */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Mã phim:</label>
+                        <TextInput
+                          value={form.cong_doan.ma_phim || ''}
+                          onChange={(value) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, ma_phim: value }
+                          })}
+                          placeholder="VD: C5"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                        <FileUploadCompact
+                          currentFile={form.cong_doan.ma_phim_file}
+                          onFileChange={handleMaPhimFileChange}
+                          onFileRemove={handleMaPhimFileRemove}
+                          accept=".pdf,.png,.jpg,.jpeg"
+                        />
+                      </div>
+
+                      {/* Số màu */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Số màu:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.so_mau || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, so_mau: e.target.value }
+                          })}
+                          placeholder="VD: 4"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* In */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">In:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.in || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, in: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Bồi */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Bồi:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.boi || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, boi: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Cán màng */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Cán màng:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.can_mang || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, can_mang: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Mã khuôn + Upload */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Mã khuôn:</label>
+                        <TextInput
+                          value={form.cong_doan.ma_khuon || ''}
+                          onChange={(value) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, ma_khuon: value }
+                          })}
+                          placeholder="VD: K100"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                        <FileUploadCompact
+                          currentFile={form.cong_doan.ma_khuon_file}
+                          onFileChange={handleMaKhuonFileChange}
+                          onFileRemove={handleMaKhuonFileRemove}
+                          accept=".pdf,.png,.jpg,.jpeg"
+                        />
+                      </div>
+
+                      {/* Bế */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Bế:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.be || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, be: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Chạp */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Chạp:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.chap || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, chap: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Đóng */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Đóng:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.dong || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, dong: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Dán */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Dán:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.dan || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, dan: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Khác */}
+                      <div className="flex items-center gap-2">
+                        <label className="w-28 text-sm font-medium">Khác:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.khac || ''}
+                          onChange={(e) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, khac: e.target.value }
+                          })}
+                          placeholder="Định mức (cái/h)"
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1015,10 +1347,35 @@ function Product() {
                     {CONG_DOAN_MAC_DINH.map(cd => {
                       const value = selectedProduct.cong_doan[cd.ma];
                       if (!value) return null;
+                      
                       return (
                         <div key={cd.ma} className="bg-white p-2 rounded border">
                           <p className="text-xs text-gray-600">{cd.ten}</p>
                           <p className="font-medium">{value}</p>
+                          
+                          {/* Link file Mã phim */}
+                          {cd.ma === 'ma_phim' && selectedProduct.cong_doan.ma_phim_file && (
+                            <a
+                              href={selectedProduct.cong_doan.ma_phim_file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+                            >
+                              📄 Xem file ({selectedProduct.cong_doan.ma_phim_file.type?.includes('image') ? 'Ảnh' : 'PDF'})
+                            </a>
+                          )}
+                          
+                          {/* Link file Mã khuôn */}
+                          {cd.ma === 'ma_khuon' && selectedProduct.cong_doan.ma_khuon_file && (
+                            <a
+                              href={selectedProduct.cong_doan.ma_khuon_file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+                            >
+                              📄 Xem file ({selectedProduct.cong_doan.ma_khuon_file.type?.includes('image') ? 'Ảnh' : 'PDF'})
+                            </a>
+                          )}
                         </div>
                       );
                     })}
