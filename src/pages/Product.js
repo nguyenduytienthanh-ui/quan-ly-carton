@@ -3,7 +3,6 @@ import { Plus, Search, Edit, Trash2, Copy, Eye, Download, ChevronRight } from 'l
 import * as XLSX from 'xlsx';
 import TextInput from '../components/TextInput';
 import TextArea from '../components/TextArea';
-import FileUploadCompact from '../components/FileUploadCompact';
 
 const removeVietnameseTones = (str) => {
   return str
@@ -15,17 +14,21 @@ const removeVietnameseTones = (str) => {
 
 // Danh sách công đoạn cố định
 const CONG_DOAN_MAC_DINH = [
+  { ma: 'xa', ten: 'Xả', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'ma_phim', ten: 'Mã phim', type: 'text', placeholder: 'Mã hóa phim in' },
+  // 🔮 TƯƠNG LAI: ma_phim_file, ma_phim_file_name, ma_phim_file_type
   { ma: 'so_mau', ten: 'Số màu', type: 'number', placeholder: 'Số màu in' },
   { ma: 'in', ten: 'In', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'boi', ten: 'Bồi', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'can_mang', ten: 'Cán màng', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'ma_khuon', ten: 'Mã khuôn', type: 'text', placeholder: 'Mã khuôn bế' },
+  // 🔮 TƯƠNG LAI: ma_khuon_file, ma_khuon_file_name, ma_khuon_file_type
   { ma: 'be', ten: 'Bế', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'chap', ten: 'Chạp', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'dong', ten: 'Đóng', type: 'number', placeholder: 'Định mức (cái/h)' },
   { ma: 'dan', ten: 'Dán', type: 'number', placeholder: 'Định mức (cái/h)' },
-  { ma: 'khac', ten: 'Khác', type: 'number', placeholder: 'Định mức (cái/h)' }
+  { ma: 'khac', ten: 'Khác', type: 'number', placeholder: 'Định mức (cái/h)' },
+  { ma: 'khac_ghi_chu', ten: 'Ghi chú Khác', type: 'text', placeholder: 'VD: Đóng gói đặc biệt, Bao film, Ép plastic...' }
 ];
 
 function Product() {
@@ -66,19 +69,25 @@ function Product() {
     sai_lech_so_luong: '',
     sai_lech_phan_tram: '',
     cong_doan: {
+      xa: '',
       ma_phim: '',
       ma_phim_file: null,
+      ma_phim_file_name: null,
+      ma_phim_file_type: null,
       so_mau: '',
       in: '',
       boi: '',
       can_mang: '',
       ma_khuon: '',
       ma_khuon_file: null,
+      ma_khuon_file_name: null,
+      ma_khuon_file_type: null,
       be: '',
       chap: '',
       dong: '',
       dan: '',
-      khac: ''
+      khac: '',
+      khac_ghi_chu: ''
     },
     co_thanh_phan_con: false,
     thanh_phan_con: [],
@@ -91,46 +100,6 @@ function Product() {
   }, [products]);
 
   // File upload handlers
-  const handleMaPhimFileChange = (fileData) => {
-    setForm({
-      ...form,
-      cong_doan: {
-        ...form.cong_doan,
-        ma_phim_file: fileData
-      }
-    });
-  };
-
-  const handleMaPhimFileRemove = () => {
-    setForm({
-      ...form,
-      cong_doan: {
-        ...form.cong_doan,
-        ma_phim_file: null
-      }
-    });
-  };
-
-  const handleMaKhuonFileChange = (fileData) => {
-    setForm({
-      ...form,
-      cong_doan: {
-        ...form.cong_doan,
-        ma_khuon_file: fileData
-      }
-    });
-  };
-
-  const handleMaKhuonFileRemove = () => {
-    setForm({
-      ...form,
-      cong_doan: {
-        ...form.cong_doan,
-        ma_khuon_file: null
-      }
-    });
-  };
-
   const getKTSXThucTe = (product) => {
     const dai = product.sx_dai || product.po_dai;
     const rong = product.sx_rong || product.po_rong;
@@ -150,8 +119,8 @@ function Product() {
   };
 
   const handleSubmit = () => {
-    if (!form.ma_hang.trim() || !form.ten_san_pham.trim() || !form.khach_hang_id) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
+    if (!form.ma_hang.trim() || !form.ten_san_pham.trim()) {
+      alert('Vui lòng điền đầy đủ Mã hàng và Tên sản phẩm!');
       return;
     }
 
@@ -189,7 +158,6 @@ function Product() {
     const productData = {
       ma_hang: form.ma_hang.toUpperCase().trim(),
       ten_san_pham: form.ten_san_pham.trim(),
-      khach_hang_id: form.khach_hang_id,
       po_dai: parseFloat(form.po_dai),
       po_rong: parseFloat(form.po_rong),
       po_cao: parseFloat(form.po_cao),
@@ -393,48 +361,12 @@ function Product() {
     if (!searchTerm) return true;
     const searchLower = removeVietnameseTones(searchTerm.toLowerCase());
     const customer = customers.find(c => c.id === p.khach_hang_id);
-    const ktsx = getKTSXThucTe(p);
-    
-    // SEARCH ALL - Tìm trong TẤT CẢ fields
     const searchableFields = [
       p.ma_hang,
       p.ten_san_pham,
       customer ? customer.name : '',
-      p.don_gia?.toString() || '',
-      ktsx.display,
-      p.song || '',
-      p.dvt || '',
-      p.kieu || '',
-      p.ghi_chu || '',
-      // Công đoạn
-      p.cong_doan?.ma_phim || '',
-      p.cong_doan?.ma_khuon || '',
-      p.cong_doan?.so_mau?.toString() || '',
-      p.cong_doan?.in?.toString() || '',
-      p.cong_doan?.boi?.toString() || '',
-      p.cong_doan?.can_mang?.toString() || '',
-      p.cong_doan?.be?.toString() || '',
-      p.cong_doan?.chap?.toString() || '',
-      p.cong_doan?.dong?.toString() || '',
-      p.cong_doan?.dan?.toString() || '',
-      p.cong_doan?.khac?.toString() || '',
-      // Kích thước PO
-      p.po_dai?.toString() || '',
-      p.po_rong?.toString() || '',
-      p.po_cao?.toString() || '',
-      // Kích thước SX
-      p.sx_dai?.toString() || '',
-      p.sx_rong?.toString() || '',
-      p.sx_cao?.toString() || '',
-      // Hoa hồng
-      p.hoa_hong_co_dinh?.toString() || '',
-      p.hoa_hong_phan_tram?.toString() || '',
-      // Thành phần con
-      p.co_thanh_phan_con ? 'có con' : '',
-      ...(p.thanh_phan_con || []).map(con => con.ten || ''),
-      ...(p.thanh_phan_con || []).map(con => con.ma_hang_con || '')
+      p.ghi_chu || ''
     ];
-    
     return searchableFields.some(field =>
       removeVietnameseTones(field.toLowerCase()).includes(searchLower)
     );
@@ -504,37 +436,17 @@ function Product() {
 
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div>
-          <label className="block text-sm font-medium mb-2">Tìm kiếm tất cả</label>
+          <label className="block text-sm font-medium mb-2">Tìm kiếm</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Mã hàng, tên, khách hàng, giá, KTSX, sóng, mã phim, mã khuôn..."
-              className="w-full pl-10 pr-10 py-2 border rounded-lg"
+              placeholder="Mã hàng, tên sản phẩm..."
+              className="w-full pl-10 pr-4 py-2 border rounded-lg"
             />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-colors"
-                title="Xóa tìm kiếm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
           </div>
-          {searchTerm && (
-            <p className="text-xs text-gray-500 mt-2">
-              Đang tìm: <span className="font-medium text-blue-600">"{searchTerm}"</span> - 
-              Tìm thấy: <span className="font-medium text-green-600">{filteredProducts.length}</span> kết quả
-            </p>
-          )}
-          <p className="text-xs text-gray-400 mt-1">
-            💡 Có thể tìm theo: mã, tên, khách hàng, giá (VD: 22000), KTSX (VD: 60x40), sóng (B/BC/E), mã phim, mã khuôn, thành phần con...
-          </p>
         </div>
       </div>
 
@@ -545,7 +457,6 @@ function Product() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã hàng</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Có con</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">KTSX</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Mã phim</th>
@@ -561,7 +472,6 @@ function Product() {
                   <tr key={product.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 text-sm font-bold text-blue-600">{product.ma_hang}</td>
                     <td className="px-4 py-4 text-sm font-medium">{product.ten_san_pham}</td>
-                    <td className="px-4 py-4 text-sm">{getCustomerName(product.khach_hang_id)}</td>
                     <td className="px-4 py-4 text-center">
                       {product.co_thanh_phan_con ? (
                         <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">
@@ -679,7 +589,7 @@ function Product() {
             </div>
             <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
               {/* Thông tin cơ bản */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Mã hàng mẹ *</label>
                   <input
@@ -698,19 +608,6 @@ function Product() {
                     placeholder="VD: Thùng A1"
                     className="w-full px-4 py-2 border rounded-lg"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Khách hàng *</label>
-                  <select
-                    value={form.khach_hang_id}
-                    onChange={(e) => setForm({ ...form, khach_hang_id: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                  >
-                    <option value="">Chọn khách hàng</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
 
@@ -824,24 +721,35 @@ function Product() {
                   <div className="border-t pt-4">
                     <h4 className="font-medium mb-3">Công đoạn (Thùng)</h4>
                     <div className="grid grid-cols-2 gap-4">
-                      {/* Mã phim + Upload */}
+                      {/* XẢ - Công đoạn đầu tiên */}
                       <div className="flex items-center gap-2">
-                        <label className="w-28 text-sm font-medium">Mã phim:</label>
-                        <TextInput
-                          value={form.cong_doan.ma_phim || ''}
-                          onChange={(value) => setForm({
+                        <label className="w-28 text-sm font-medium">Xả:</label>
+                        <input
+                          type="number"
+                          value={form.cong_doan.xa || ''}
+                          onChange={(e) => setForm({
                             ...form,
-                            cong_doan: { ...form.cong_doan, ma_phim: value }
+                            cong_doan: { ...form.cong_doan, xa: e.target.value }
                           })}
-                          placeholder="VD: C5"
+                          placeholder="Định mức (cái/h)"
                           className="flex-1 px-3 py-2 border rounded-lg text-sm"
                         />
-                        <FileUploadCompact
-                          currentFile={form.cong_doan.ma_phim_file}
-                          onFileChange={handleMaPhimFileChange}
-                          onFileRemove={handleMaPhimFileRemove}
-                          accept=".pdf,.png,.jpg,.jpeg"
-                        />
+                      </div>
+
+                      {/* Mã phim + Upload */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="w-28 text-sm font-medium">Mã phim:</label>
+                          <TextInput
+                            value={form.cong_doan.ma_phim || ''}
+                            onChange={(value) => setForm({
+                              ...form,
+                              cong_doan: { ...form.cong_doan, ma_phim: value }
+                            })}
+                            placeholder="VD: C5"
+                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          />
+                        </div>
                       </div>
 
                       {/* Số màu */}
@@ -905,23 +813,19 @@ function Product() {
                       </div>
 
                       {/* Mã khuôn + Upload */}
-                      <div className="flex items-center gap-2">
-                        <label className="w-28 text-sm font-medium">Mã khuôn:</label>
-                        <TextInput
-                          value={form.cong_doan.ma_khuon || ''}
-                          onChange={(value) => setForm({
-                            ...form,
-                            cong_doan: { ...form.cong_doan, ma_khuon: value }
-                          })}
-                          placeholder="VD: K100"
-                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                        />
-                        <FileUploadCompact
-                          currentFile={form.cong_doan.ma_khuon_file}
-                          onFileChange={handleMaKhuonFileChange}
-                          onFileRemove={handleMaKhuonFileRemove}
-                          accept=".pdf,.png,.jpg,.jpeg"
-                        />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="w-28 text-sm font-medium">Mã khuôn:</label>
+                          <TextInput
+                            value={form.cong_doan.ma_khuon || ''}
+                            onChange={(value) => setForm({
+                              ...form,
+                              cong_doan: { ...form.cong_doan, ma_khuon: value }
+                            })}
+                            placeholder="VD: K100"
+                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          />
+                        </div>
                       </div>
 
                       {/* Bế */}
@@ -996,6 +900,21 @@ function Product() {
                           })}
                           placeholder="Định mức (cái/h)"
                           className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+
+                      {/* Ghi chú Khác - Full width */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium mb-2">Ghi chú Khác:</label>
+                        <TextArea
+                          value={form.cong_doan.khac_ghi_chu || ''}
+                          onChange={(value) => setForm({
+                            ...form,
+                            cong_doan: { ...form.cong_doan, khac_ghi_chu: value }
+                          })}
+                          placeholder="VD: Đóng gói đặc biệt, Bao film, Ép plastic..."
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          rows={2}
                         />
                       </div>
                     </div>
@@ -1256,7 +1175,7 @@ function Product() {
               {/* Thông tin cơ bản */}
               <div className="border rounded-lg p-4 bg-gray-50">
                 <h3 className="font-bold mb-3 text-gray-900">Thông tin cơ bản</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Mã hàng</p>
                     <p className="font-bold text-blue-600">{selectedProduct.ma_hang}</p>
@@ -1264,10 +1183,6 @@ function Product() {
                   <div>
                     <p className="text-sm text-gray-600">Tên sản phẩm</p>
                     <p className="font-medium">{selectedProduct.ten_san_pham}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Khách hàng</p>
-                    <p className="font-medium">{getCustomerName(selectedProduct.khach_hang_id)}</p>
                   </div>
                 </div>
               </div>
